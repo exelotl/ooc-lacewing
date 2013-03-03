@@ -232,7 +232,7 @@ LwError: cover from lw_error {
 	add: extern(lw_error_add) func (Long)
 	addf: extern(lw_error_addf) func (format:CString, ...)
 	size: extern(lw_error_size) func -> SizeT
-	tostring: extern(lw_error_tostring) func -> CString
+	toString: extern(lw_error_tostring) func -> CString
 	clone: extern(lw_error_clone) func -> LwError
 	tag: extern(lw_error_tag) func -> Pointer
 	setTag: extern(lw_error_set_tag) func (Pointer)
@@ -246,11 +246,11 @@ LwClientHookError      : cover from Pointer // Func (LwClient, LwError)
 LwClient: cover from lw_client {
 	new: extern(lw_client_new) static func (pump:LwPump) -> LwClient
 	connect: extern(lw_client_connect) func (host:CString, port:Long)
-	connect_addr: extern(lw_client_connect_addr) func (address:LwAddress)
+	connect: extern(lw_client_connect_addr) func ~addr (address:LwAddress)
 	disconnect: extern(lw_client_disconnect) func
 	connected: extern(lw_client_connected) func -> Bool
 	connecting: extern(lw_client_connecting) func -> Bool
-	server_addr: extern(lw_client_server_addr) func -> LwAddress
+	serverAddr: extern(lw_client_server_addr) func -> LwAddress
 	onConnect: extern(lw_client_on_connect) func (LwClientHookConnect)
 	onDisconnect: extern(lw_client_on_disconnect) func (LwClientHookDisconnect)
 	onData: extern(lw_client_on_data) func (LwClientHookData)
@@ -266,7 +266,7 @@ LwServer: cover from lw_server {
 	new: extern(lw_server_new) static func (pump:LwPump) -> LwServer
 	delete: extern(lw_server_delete) func
 	host: extern(lw_server_host) func (port:Long)
-	hostFilter: extern(lw_server_host_filter) func (filter:LwFilter)
+	host: extern(lw_server_host_filter) func ~filter (filter:LwFilter)
 	unhost: extern(lw_server_unhost) func
 	hosting: extern(lw_server_hosting) func -> Bool
 	port: extern(lw_server_port) func -> Long
@@ -286,9 +286,9 @@ LwServer: cover from lw_server {
 }
 
 LwServerClient: cover from lw_server_client {
-	lw_server_client_npn: extern(lw_server_client_npn) func -> CString
-	lw_server_client_addr: extern(lw_server_client_addr) func -> LwAddress
-	lw_server_client_next: extern(lw_server_client_next) func -> LwServerClient
+	npn: extern(lw_server_client_npn) func -> CString
+	addr: extern(lw_server_client_addr) func -> LwAddress
+	next: extern(lw_server_client_next) func -> LwServerClient
 }
 
 LwUdpHookData: cover from Pointer // Func (LwUdp, LwAddress, CString buffer, SizeT size)
@@ -298,8 +298,8 @@ LwUdp: cover from lw_udp {
 	new: extern(lw_udp_new) static func (pump:LwPump) -> LwUdp
 	delete: extern(lw_udp_delete) func
 	host: extern(lw_udp_host) func (port:Long)
-	hostFilter: extern(lw_udp_host_filter) func (filter:LwFilter)
-	hostAddr: extern(lw_udp_host_addr) func (address:LwAddress)
+	host: extern(lw_udp_host_filter) func ~filter (filter:LwFilter)
+	host: extern(lw_udp_host_addr) func ~addr (address:LwAddress)
 	hosting: extern(lw_udp_hosting) func -> Bool
 	unhost: extern(lw_udp_unhost) func
 	port: extern(lw_udp_port) func -> Long
@@ -314,7 +314,7 @@ LwFlashPolicy: cover from lw_flashpolicy {
 	new: extern(lw_flashpolicy_new) static func (pump:LwPump) -> LwFlashPolicy
 	delete: extern(lw_flashpolicy_delete) func ()
 	host: extern(lw_flashpolicy_host) func (filename:CString)
-	hostFilter: extern(lw_flashpolicy_host_filter) func (filename:CString, filter:LwFilter)
+	host: extern(lw_flashpolicy_host_filter) func ~filter (filename:CString, filter:LwFilter)
 	unhost: extern(lw_flashpolicy_unhost) func
 	hosting: extern(lw_flashpolicy_hosting) func -> Bool
 	onError: extern(lw_flashpolicy_on_error) func (LwFlashPolicyHookError)
@@ -324,9 +324,9 @@ LwWebServ: cover from lw_ws {
 	new: extern(lw_ws_new) static func (pump:LwPump) -> LwWebServ
 	delete: extern(lw_ws_delete) func
 	host: extern(lw_ws_host) func (port:Long)
+	host: extern(lw_ws_host_filter) func ~filter (filter:LwFilter)
 	hostSecure: extern(lw_ws_host_secure) func (port:Long)
-	hostFilter: extern(lw_ws_host_filter) func (filter:LwFilter)
-	hostSecureFilter: extern(lw_ws_host_secure_filter) func (filter:LwFilter)
+	hostSecure: extern(lw_ws_host_secure_filter) func ~filter (filter:LwFilter)
 	unhost: extern(lw_ws_unhost) func
 	unhostSecure: extern(lw_ws_unhost_secure) func
 	hosting: extern(lw_ws_hosting) func -> Bool
