@@ -1,0 +1,5 @@
+*.sublime-project
+*.sublime-workspace
+*.exe
+samples/.libs/*
+samples/rock_tmp/*
