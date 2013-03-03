@@ -93,14 +93,18 @@ LwPump: cover from lw_pump {
 	inUse: extern(lw_pump_in_use) func -> Bool
 	remove: extern(lw_pump_remove) func (watch:LwPumpWatch)
 	post: extern(lw_pump_post) func (fn:Pointer, param:Pointer)
-	
-	//version (windows) {
-	//	add: extern(lw_pump_add) func (pump:LwPump, h:Handle, tag:Pointer, cb:LwPumpCallback) -> LwPumpWatch
-	//	updateCallbacks: extern(lw_pump_update_callbacks) func (pump:LwPump, LwPumpWatch, tag:Pointer, cb:LwPumpCallback) -> Void
-	//} else {
-	//	add: extern(lw_pump_add) func (pump:LwPump, fd:Int, tag:Pointer, onReadReady, onWriteReady:LwPumpCallback, edgeTriggered:Bool) -> LwPumpWatch
-	//	updateCallbacks: extern(lw_pump_update_callbacks) func (pump:LwPump, watch:LwPumpWatch, tag:Pointer, onReadReady, onWriteReady:LwPumpCallback, edgeTriggered:Bool) -> Void
-	//}
+}
+
+version (windows) {
+	extend LwPump {
+		add: extern(lw_pump_add) func (pump:LwPump, h:Handle, tag:Pointer, cb:LwPumpCallback) -> LwPumpWatch
+		updateCallbacks: extern(lw_pump_update_callbacks) func (pump:LwPump, watch:LwPumpWatch, tag:Pointer, cb:LwPumpCallback) -> Void
+	}
+} else {
+	extend LwPump {
+		add: extern(lw_pump_add) func (pump:LwPump, fd:Int, tag:Pointer, onReadReady, onWriteReady:LwPumpCallback, edgeTriggered:Bool) -> LwPumpWatch
+		updateCallbacks: extern(lw_pump_update_callbacks) func (pump:LwPump, watch:LwPumpWatch, tag:Pointer, onReadReady, onWriteReady:LwPumpCallback, edgeTriggered:Bool) -> Void
+	}
 }
 
 LwPumpWatch: cover from lw_pump_watch {}
@@ -275,16 +279,16 @@ LwServer: cover from lw_server {
 	clientFirst: extern(lw_server_client_first) func -> LwServerClient
 	tag: extern(lw_server_tag) func -> Pointer
 	setTag: extern(lw_server_set_tag) func (Pointer)
-	onConnect: extern(lw_server_on_connect) func (LwServer, LwServerHookConnect)
-	onDisconnect: extern(lw_server_on_disconnect) func (LwServer, LwServerHookDisconnect)
-	onData: extern(lw_server_on_data) func (LwServer, LwServerHookData)
-	onError: extern(lw_server_on_error) func (LwServer, LwServerHookError)
+	onConnect: extern(lw_server_on_connect) func (LwServerHookConnect)
+	onDisconnect: extern(lw_server_on_disconnect) func (LwServerHookDisconnect)
+	onData: extern(lw_server_on_data) func (LwServerHookData)
+	onError: extern(lw_server_on_error) func (LwServerHookError)
 }
 
 LwServerClient: cover from lw_server_client {
-	lw_server_client_npn: extern(lw_server_client_npn) func (client:LwServerClient) -> CString
-	lw_server_client_addr: extern(lw_server_client_addr) func (client:LwServerClient) -> LwAddress
-	lw_server_client_next: extern(lw_server_client_next) func (client:LwServerClient) -> LwServerClient
+	lw_server_client_npn: extern(lw_server_client_npn) func -> CString
+	lw_server_client_addr: extern(lw_server_client_addr) func -> LwAddress
+	lw_server_client_next: extern(lw_server_client_next) func -> LwServerClient
 }
 
 LwUdpHookData: cover from Pointer // Func (LwUdp, LwAddress, CString buffer, SizeT size)
@@ -300,8 +304,8 @@ LwUdp: cover from lw_udp {
 	unhost: extern(lw_udp_unhost) func
 	port: extern(lw_udp_port) func -> Long
 	send: extern(lw_udp_send) func (address:LwAddress, buffer:CString, size:SizeT)
-	onData: extern(lw_udp_on_data) func (LwUdp, LwUdpHookData)
-	onError: extern(lw_udp_on_error) func (LwUdp, LwUdpHookError)
+	onData: extern(lw_udp_on_data) func (LwUdpHookData)
+	onError: extern(lw_udp_on_error) func (LwUdpHookError)
 }
 	
 LwFlashPolicyHookError: cover from Pointer // Func (LwFlashPolicy, LwError)
