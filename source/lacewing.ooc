@@ -16,6 +16,11 @@ Lacewing: class {
 	random: extern(lw_random) static func (buffer:CString, size:SizeT) -> Bool
 }
 
+/**
+ * Cross-platform facility for starting and joining a named thread (not likely to be used in ooc code)
+ * It may be a good idea to compile lacewing with pthreads, to avoid conflicts with ooc's garbage collector
+ *  (e.g. if the GC tries to collect an object created in a callback from lacewing's own internal threads)
+ */
 LwThread: cover from lw_thread {
 	new: extern(lw_thread_new) static func (name:CString, proc:Pointer) -> LwThread
 	delete: extern(lw_thread_delete) func
@@ -30,6 +35,9 @@ LwAddressHint: enum {
 	ipv6: extern (lw_addr_hint_ipv6)
 }
 
+/**
+ * Represents the address of a remote host.
+ */
 LwAddress: cover from lw_addr {
 	new: extern(lw_addr_new) static func (hostname:CString, service:CString) -> LwAddress
 	new: extern(lw_addr_new_port) static func ~port (hostname:CString, port:Long) -> LwAddress
@@ -41,11 +49,14 @@ LwAddress: cover from lw_addr {
 	setPort: extern(lw_addr_set_port) func (port:Long)
 	ready: extern(lw_addr_ready) func -> Bool
 	resolve: extern(lw_addr_resolve) func -> LwError
-	ipv6: extern(lw_addr_ipv6) func -> Bool
+	IPv6: extern(lw_addr_ipv6) func -> Bool
 	equal: extern(lw_addr_equal) func (addr:LwAddress) -> Bool
 	toString: extern(lw_addr_tostring) func -> CString
 }
 
+/**
+ * Describe where a server (LwServer, LwWebServ, LwUdp) should accept connections from.
+ */
 LwFilter: cover from lw_filter {
 	new: extern(lw_filter_new) static func -> LwFilter
 	delete: extern(lw_filter_delete) func
@@ -60,16 +71,16 @@ LwFilter: cover from lw_filter {
 	setRemotePort: extern(lw_filter_set_remote_port) func (port:Long)
 	reuse: extern(lw_filter_reuse) func -> Bool
 	setReuse: extern(lw_filter_set_reuse) func (Bool)
-	ipv6: extern(lw_filter_ipv6) func -> Bool
-	setIpv6: extern(lw_filter_set_ipv6) func (Bool)
+	IPv6: extern(lw_filter_ipv6) func -> Bool
+	setIPv6: extern(lw_filter_set_ipv6) func (Bool)
 }
 
-
+/* For pump implementors */
 LwPumpDef: cover from lw_pumpdef {
 	add              : extern Pointer // Platform specific (see LwPump add)
 	update_callbacks : extern Pointer // Platform specific (see LwPump updateCallbacks)
 	remove           : extern Pointer // Func (pump:LwPump, watch:LwPumpWatch)
-	post             : extern Pointer // Func (pump:LwPump, fn:Void*, param:Void*)
+	post             : extern Pointer // Func (pump:LwPump, fn:Pointer, param:Pointer)
 	cleanup          : extern Pointer // Func (pump:LwPump)
 	outer_size : extern SizeT
 }
@@ -79,9 +90,9 @@ version (windows) {
 	Handle: cover from HANDLE
 }
 
-LwPumpCallback: cover from Pointer // unix: Func(tag:Pointer)
-                                   // windows: Func(tag:Pointer, Overlapped*, bytes:ULong, error:Int)
-
+/**
+ * Base class, watches file descriptors for activity
+ */
 LwPump: cover from lw_pump {
 	new: extern(lw_pump_new) static func (LwPumpDef*) -> LwPump
 	getDef: extern(lw_pump_get_def) func -> LwPumpDef*
@@ -107,15 +118,23 @@ version (windows) {
 	}
 }
 
-LwPumpWatch: cover from lw_pump_watch {}
+LwPumpCallback: cover from Pointer // unix: Func(tag:Pointer)
+                                   // windows: Func(tag:Pointer, Overlapped*, bytes:ULong, error:Int)
 
-LwEventPump: cover from lw_eventpump {
+LwPumpWatch: cover from lw_pump_watch
+
+/**
+ * Default implementation of LwPump. Has several modes of operation:
+ *   tick - poll aggressively (suited to a game loop)
+ *   startEventLoop - blocks forever (suited to console applications and daemons)
+ *   startSleepyTicking - enables a threaded callback to request the application call tick() as soon as possible
+ */
+LwEventPump: cover from lw_eventpump extends LwPump {
 	new: extern(lw_eventpump_new) static func -> LwEventPump
 	tick: extern(lw_eventpump_tick) func -> LwError
 	startEventLoop: extern(lw_eventpump_start_eventloop) func -> LwError
 	startSleepyTicking: extern(lw_eventpump_start_sleepy_ticking) func (onTickNeeded:Pointer/*Func(LwEventPump)*/)
 	postEventLoopExit: extern(lw_eventpump_post_eventloop_exit) func
-	// note: LwPump methods can be called through casting
 }
 
 
@@ -138,9 +157,9 @@ LwStreamRetry: enum {
 	moreData: extern (lw_stream_retry_more_data)
 }
 
-LwStreamHookData: cover from Pointer // Func(LwStream, tag:Void*, buffer:CString, length:SizeT)
-LwStreamHookClose: cover from Pointer // Func(LwStream, tag:Void*)
-
+/**
+ * Base class for any object capable of I/O.
+ */
 LwStream: cover from lw_stream {
 	new: extern(lw_stream_new) static func (def:LwStreamDef*, pump:LwPump) -> LwStream
 	getDef: extern(lw_stream_get_def) func -> LwStreamDef*
@@ -160,21 +179,27 @@ LwStream: cover from lw_stream {
 	addFilterUpstream: extern(lw_stream_add_filter_upstream) func (filter:LwStream, deleteWithStream, closeTogether:Bool)
 	addFilterDownstream: extern(lw_stream_add_filter_downstream) func (filter:LwStream, deleteWithStream, closeTogether:Bool)
 	close: extern(lw_stream_close) func (immediate:Bool) -> Bool
-	tag: extern(lw_stream_tag) func -> Void*
-	setTag: extern(lw_stream_set_tag) func (tag:Void*)
+	tag: extern(lw_stream_tag) func -> Pointer
+	setTag: extern(lw_stream_set_tag) func (tag:Pointer)
 	pump: extern(lw_stream_pump) func -> LwPump
-	outer: extern(lw_stream_outer) func -> Void*
+	outer: extern(lw_stream_outer) func -> Pointer
 	data: extern(lw_stream_data) func (buffer:CString, size:SizeT)
-	addHookClose: extern(lw_stream_add_hook_close) func (fn:LwStreamHookClose, tag:Void*)
-	removeHookClose: extern(lw_stream_remove_hook_close) func (fn:LwStreamHookClose, tag:Void*)
-	addHookData: extern(lw_stream_add_hook_data) func (fn:LwStreamHookData, tag:Void*)
-	removeHookData: extern(lw_stream_remove_hook_data) func (fn:LwStreamHookData, tag:Void*)
+	addHookClose: extern(lw_stream_add_hook_close) func (fn:LwStreamHookClose, tag:Pointer)
+	removeHookClose: extern(lw_stream_remove_hook_close) func (fn:LwStreamHookClose, tag:Pointer)
+	addHookData: extern(lw_stream_add_hook_data) func (fn:LwStreamHookData, tag:Pointer)
+	removeHookData: extern(lw_stream_remove_hook_data) func (fn:LwStreamHookData, tag:Pointer)
 }
+
+LwStreamHookData: cover from Pointer // Func(LwStream, tag:Pointer, buffer:CString, length:SizeT)
+LwStreamHookClose: cover from Pointer // Func(LwStream, tag:Pointer)
 
 LwFileDescriptor: cover from lw_fd
 
-LwFileStream: cover from lw_fdstream {
-	new: extern(lw_fdstream_new) static func (pump:LwPump) -> LwFileStream
+/**
+ * Implementation of LwStream over a file descriptor (or a file HANDLE on Windows)
+ */
+LwFDStream: cover from lw_fdstream extends LwStream {
+	new: extern(lw_fdstream_new) static func (pump:LwPump) -> LwFDStream
 	setFd: extern(lw_fdstream_set_fd) func (fd:LwFileDescriptor, watch:LwPumpWatch, autoClose:Bool)
 	cork: extern(lw_fdstream_cork) func
 	uncork: extern(lw_fdstream_uncork) func
@@ -182,7 +207,10 @@ LwFileStream: cover from lw_fdstream {
 	valid: extern(lw_fdstream_valid) func -> Bool
 }
 
-LwFile: cover from lw_file {
+/**
+ * LwFDStream providing access to named files.
+ */
+LwFile: cover from lw_file extends LwFDStream {
 	new: extern(lw_file_new) static func (pump:LwPump) -> LwFile
 	new: extern(lw_file_new_open) static func ~open (pump:LwPump, filename, mode:CString) -> LwFile
 	open: extern(lw_file_open) func (filename, mode:CString) -> Bool
@@ -238,12 +266,10 @@ LwError: cover from lw_error {
 	setTag: extern(lw_error_set_tag) func (Pointer)
 }
 
-LwClientHookConnect    : cover from Pointer // Func (LwClient)
-LwClientHookDisconnect : cover from Pointer // Func (LwClient)
-LwClientHookData       : cover from Pointer // Func (LwClient, buffer:CString, size:Long)
-LwClientHookError      : cover from Pointer // Func (LwClient, LwError)
-
-LwClient: cover from lw_client {
+/**
+ * TCP socket client, driven by a LwPump.
+ */
+LwClient: cover from lw_client extends LwFDStream {
 	new: extern(lw_client_new) static func (pump:LwPump) -> LwClient
 	connect: extern(lw_client_connect) func (host:CString, port:Long)
 	connect: extern(lw_client_connect_addr) func ~addr (address:LwAddress)
@@ -257,11 +283,14 @@ LwClient: cover from lw_client {
 	onError: extern(lw_client_on_error) func (LwClientHookError)
 }
 
-LwServerHookConnect    : cover from Pointer // Func(LwServer, LwServerClient)
-LwServerHookDisconnect : cover from Pointer // Func(LwServer, LwServerClient)
-LwServerHookData       : cover from Pointer // Func(LwServer, LwServerClient, CString buffer, SizeT size)
-LwServerHookError      : cover from Pointer // Func(LwServer, LwError)
+LwClientHookConnect    : cover from Pointer // Func (LwClient)
+LwClientHookDisconnect : cover from Pointer // Func (LwClient)
+LwClientHookData       : cover from Pointer // Func (LwClient, buffer:CString, size:Long)
+LwClientHookError      : cover from Pointer // Func (LwClient, LwError)
 
+/**
+ * TCP socket server, driven by a LwPump.
+ */
 LwServer: cover from lw_server {
 	new: extern(lw_server_new) static func (pump:LwPump) -> LwServer
 	delete: extern(lw_server_delete) func
@@ -285,15 +314,23 @@ LwServer: cover from lw_server {
 	onError: extern(lw_server_on_error) func (LwServerHookError)
 }
 
-LwServerClient: cover from lw_server_client {
+LwServerHookConnect    : cover from Pointer // Func(LwServer, LwServerClient)
+LwServerHookDisconnect : cover from Pointer // Func(LwServer, LwServerClient)
+LwServerHookData       : cover from Pointer // Func(LwServer, LwServerClient, CString buffer, SizeT size)
+LwServerHookError      : cover from Pointer // Func(LwServer, LwError)
+
+/**
+ * Represents a remote client connected to a LwServer.
+ */
+LwServerClient: cover from lw_server_client extends LwFDStream {
 	npn: extern(lw_server_client_npn) func -> CString
 	addr: extern(lw_server_client_addr) func -> LwAddress
 	next: extern(lw_server_client_next) func -> LwServerClient
 }
 
-LwUdpHookData: cover from Pointer // Func (LwUdp, LwAddress, CString buffer, SizeT size)
-LwUdpHookError: cover from Pointer // Func (LwUdp, LwError)
-
+/**
+ * LwEventPump-driven connectionless datagram support.
+ */
 LwUdp: cover from lw_udp {
 	new: extern(lw_udp_new) static func (pump:LwPump) -> LwUdp
 	delete: extern(lw_udp_delete) func
@@ -307,9 +344,13 @@ LwUdp: cover from lw_udp {
 	onData: extern(lw_udp_on_data) func (LwUdpHookData)
 	onError: extern(lw_udp_on_error) func (LwUdpHookError)
 }
-	
-LwFlashPolicyHookError: cover from Pointer // Func (LwFlashPolicy, LwError)
 
+LwUdpHookData: cover from Pointer // Func (udp:LwUdp, address:LwAddress, buffer:CString, size:SizeT)
+LwUdpHookError: cover from Pointer // Func (udp:LwUdp, error:LwError)
+
+/**
+ * Host a socket policy file server for Adobe Flash Player clients.
+ */
 LwFlashPolicy: cover from lw_flashpolicy {
 	new: extern(lw_flashpolicy_new) static func (pump:LwPump) -> LwFlashPolicy
 	delete: extern(lw_flashpolicy_delete) func ()
@@ -319,7 +360,12 @@ LwFlashPolicy: cover from lw_flashpolicy {
 	hosting: extern(lw_flashpolicy_hosting) func -> Bool
 	onError: extern(lw_flashpolicy_on_error) func (LwFlashPolicyHookError)
 }
+	
+LwFlashPolicyHookError: cover from Pointer // Func (LwFlashPolicy, LwError)
 
+/**
+ * Embeddable, flexible HTTP server.
+ */
 LwWebServ: cover from lw_ws {
 	new: extern(lw_ws_new) static func (pump:LwPump) -> LwWebServ
 	delete: extern(lw_ws_delete) func
@@ -362,7 +408,10 @@ LsWebServHookUploadChunk : cover from Pointer // Func (serv:LwWebServ, req:LwWeb
 LsWebServHookUploadDone  : cover from Pointer // Func (serv:LwWebServ, req:LwWebServReq, upload:LwWebServUpload)
 LsWebServHookUploadPost  : cover from Pointer // Func (serv:LwWebServ, req:LwWebServReq, uploads:LwWebServUpload*, num:SuzeT)
 
-LwWebServReq: cover from lw_ws_req {
+/**
+ * 
+ */
+LwWebServReq: cover from lw_ws_req extends LwStream {
 	addr: extern(lw_ws_req_addr) func -> LwAddress
 	secure: extern(lw_ws_req_secure) func -> Bool
 	url: extern(lw_ws_req_url) func -> CString
