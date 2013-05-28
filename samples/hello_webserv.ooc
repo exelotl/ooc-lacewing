@@ -8,7 +8,7 @@ get: func(webserver:LwWebServ, req:LwWebServReq) {
 main: func {
 	pump := LwEventPump new()
 	webserver := LwWebServ new(pump)
-	webserver onGet(get&) .host(80)
+	webserver onGet(get&) .host(8081)
 	pump startEventLoop()
 	
 	webserver delete()

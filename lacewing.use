@@ -8,5 +8,5 @@ version (windows) {
 	Libs: -llacewing, -lmswsock, -lws2_32, -lcrypt32, -lsecur32
 }
 version (!windows) {
-	Libs: -llacewing
+	Libs: -llacewing, -lssl
 }

@@ -3,3 +3,5 @@
 *.exe
 samples/.libs/*
 samples/rock_tmp/*
+samples/hello_webserv
+samples/irc_bot

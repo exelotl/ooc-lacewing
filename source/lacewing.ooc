@@ -12,6 +12,7 @@ Lacewing: class {
 	md5Hex: extern(lw_md5_hex) static func (output:CString, input:CString, length:SizeT)
 	sha1: extern(lw_sha1) static func (output:CString, input:CString, length:SizeT)
 	sha1Hex: extern(lw_sha1_hex) static func (output:CString, input:CString, length:SizeT)
+	trace: extern(lw_trace) static func (format:CString, ...)
 	dump: extern(lw_dump) static func (buffer:CString, size:SizeT)
 	random: extern(lw_random) static func (buffer:CString, size:SizeT) -> Bool
 }
@@ -27,12 +28,17 @@ LwThread: cover from lw_thread {
 	start: extern(lw_thread_start) func (param:Pointer)
 	started: extern(lw_thread_started) func -> Bool
 	join: extern(lw_thread_join) func -> Pointer
+	tag: extern(lw_thread_tag) func -> Pointer
+	setTag: extern(lw_thread_set_tag) func (tag:Pointer)
+}
+
+LwAddressType: enum {
+	tcp: extern(lw_addr_type_tcp)
+	udp: extern(lw_addr_type_udp)
 }
 
 LwAddressHint: enum {
-	tcp: extern (lw_addr_hint_tcp)
-	udp: extern (lw_addr_hint_udp)
-	ipv6: extern (lw_addr_hint_ipv6)
+	ipv6: extern(lw_addr_hint_ipv6)
 }
 
 /**
@@ -47,11 +53,15 @@ LwAddress: cover from lw_addr {
 	delete: extern(lw_addr_delete) func
 	port: extern(lw_addr_port) func -> Long
 	setPort: extern(lw_addr_set_port) func (port:Long)
+	type: extern(lw_addr_type) func -> LwAddressType
+	setType: extern(lw_addr_set_type) func (type:LwAddressType)
 	ready: extern(lw_addr_ready) func -> Bool
 	resolve: extern(lw_addr_resolve) func -> LwError
-	IPv6: extern(lw_addr_ipv6) func -> Bool
+	ipv6: extern(lw_addr_ipv6) func -> Bool
 	equal: extern(lw_addr_equal) func (addr:LwAddress) -> Bool
 	toString: extern(lw_addr_tostring) func -> CString
+	tag: extern(lw_addr_tag) func -> Pointer
+	setTag: extern(lw_addr_set_tag) func (tag:Pointer)
 }
 
 /**
@@ -60,7 +70,7 @@ LwAddress: cover from lw_addr {
 LwFilter: cover from lw_filter {
 	new: extern(lw_filter_new) static func -> LwFilter
 	delete: extern(lw_filter_delete) func
-	copy: extern(lw_filter_copy) func -> LwFilter
+	clone: extern(lw_filter_clone) func -> LwFilter
 	remote: extern(lw_filter_remote) func -> LwAddress
 	setRemote: extern(lw_filter_set_remote) func (address:LwAddress)
 	local: extern(lw_filter_local) func -> LwAddress
@@ -71,8 +81,10 @@ LwFilter: cover from lw_filter {
 	setRemotePort: extern(lw_filter_set_remote_port) func (port:Long)
 	reuse: extern(lw_filter_reuse) func -> Bool
 	setReuse: extern(lw_filter_set_reuse) func (Bool)
-	IPv6: extern(lw_filter_ipv6) func -> Bool
-	setIPv6: extern(lw_filter_set_ipv6) func (Bool)
+	ipv6: extern(lw_filter_ipv6) func -> Bool
+	setIpv6: extern(lw_filter_set_ipv6) func (Bool)
+	tag: extern(lw_filter_tag) func -> Pointer
+	setTag: extern(lw_filter_set_tag) func (tag:Pointer)
 }
 
 /* For pump implementors */
@@ -82,7 +94,7 @@ LwPumpDef: cover from lw_pumpdef {
 	remove           : extern Pointer // Func (pump:LwPump, watch:LwPumpWatch)
 	post             : extern Pointer // Func (pump:LwPump, fn:Pointer, param:Pointer)
 	cleanup          : extern Pointer // Func (pump:LwPump)
-	outer_size : extern SizeT
+	tail_size : extern SizeT
 }
 
 version (windows) {
@@ -96,14 +108,16 @@ version (windows) {
 LwPump: cover from lw_pump {
 	new: extern(lw_pump_new) static func (LwPumpDef*) -> LwPump
 	getDef: extern(lw_pump_get_def) func -> LwPumpDef*
-	outer: extern(lw_pump_outer) func -> Pointer
-	inner: extern(lw_pump_inner) func (Pointer) -> LwPump
+	tail: extern(lw_pump_tail) func -> Pointer
+	fromTail: extern(lw_pump_from_tail) func (Pointer) -> LwPump
 	delete: extern(lw_pump_delete) func
 	addUser: extern(lw_pump_add_user) func
 	removeUser: extern(lw_pump_remove_user) func
 	inUse: extern(lw_pump_in_use) func -> Bool
 	remove: extern(lw_pump_remove) func (watch:LwPumpWatch)
 	post: extern(lw_pump_post) func (fn:Pointer, param:Pointer)
+	tag: extern(lw_pump_tag) func -> Pointer
+	setTag: extern(lw_pump_set_tag) func (tag:Pointer)
 }
 
 version (windows) {
@@ -148,7 +162,7 @@ LwStreamDef: cover from lw_streamdef {
 	bytes_left     : extern Pointer // Func (stream:LwStream) -> SizeT
 	read           : extern Pointer // Func (stream:LwStream, bytes:SizeT) -> Void
 	cleanup        : extern Pointer // Func (stream:LwStream)
-	outer_size : extern SizeT
+	tail_size : extern SizeT
 }
 
 LwStreamRetry: enum {
@@ -171,8 +185,10 @@ LwStream: cover from lw_stream {
 	endQueue: extern(lw_stream_end_queue) func
 	endQueueHb: extern(lw_stream_end_queue_hb) func (numHeadBuffers:Int, buffers:CString* , lengths:SizeT*)
 	write: extern(lw_stream_write) func (buffer:CString, length:SizeT)
-	writeText: extern(lw_stream_write_text) func (buffer:CString)
-	writef: extern(lw_stream_writef) func (format:CString, args:...)
+	write: func ~oocString (str:String) { write(str, str size) }
+	writef: func (str:String, args:...) {
+		write(str format(args))
+	}
 	writeStream: extern(lw_stream_write_stream) func (src:LwStream, size:SizeT, deleteWhenFinished:Bool)
 	writeFile: extern(lw_stream_write_file) func (filename:CString)
 	retry: extern(lw_stream_retry) func (when:Int)
@@ -182,7 +198,8 @@ LwStream: cover from lw_stream {
 	tag: extern(lw_stream_tag) func -> Pointer
 	setTag: extern(lw_stream_set_tag) func (tag:Pointer)
 	pump: extern(lw_stream_pump) func -> LwPump
-	outer: extern(lw_stream_outer) func -> Pointer
+	tail: extern(lw_stream_tail) func -> Pointer
+	fromTail: extern(lw_steam_from_tail) func (Pointer)
 	data: extern(lw_stream_data) func (buffer:CString, size:SizeT)
 	addHookClose: extern(lw_stream_add_hook_close) func (fn:LwStreamHookClose, tag:Pointer)
 	removeHookClose: extern(lw_stream_remove_hook_close) func (fn:LwStreamHookClose, tag:Pointer)
@@ -277,6 +294,8 @@ LwClient: cover from lw_client extends LwFDStream {
 	connected: extern(lw_client_connected) func -> Bool
 	connecting: extern(lw_client_connecting) func -> Bool
 	serverAddr: extern(lw_client_server_addr) func -> LwAddress
+	tag: extern(lw_client_tag) func -> Pointer
+	setTag: extern(lw_client_set_tag) func (tag:Pointer)
 	onConnect: extern(lw_client_on_connect) func (LwClientHookConnect)
 	onDisconnect: extern(lw_client_on_disconnect) func (LwClientHookDisconnect)
 	onData: extern(lw_client_on_data) func (LwClientHookData)
@@ -307,7 +326,7 @@ LwServer: cover from lw_server {
 	numClients: extern(lw_server_num_clients) func -> SizeT
 	clientFirst: extern(lw_server_client_first) func -> LwServerClient
 	tag: extern(lw_server_tag) func -> Pointer
-	setTag: extern(lw_server_set_tag) func (Pointer)
+	setTag: extern(lw_server_set_tag) func (tag:Pointer)
 	onConnect: extern(lw_server_on_connect) func (LwServerHookConnect)
 	onDisconnect: extern(lw_server_on_disconnect) func (LwServerHookDisconnect)
 	onData: extern(lw_server_on_data) func (LwServerHookData)
@@ -341,6 +360,8 @@ LwUdp: cover from lw_udp {
 	unhost: extern(lw_udp_unhost) func
 	port: extern(lw_udp_port) func -> Long
 	send: extern(lw_udp_send) func (address:LwAddress, buffer:CString, size:SizeT)
+	tag: extern(lw_udp_tag) func -> Pointer
+	setTag: extern(lw_udp_set_tag) func (tag:Pointer)
 	onData: extern(lw_udp_on_data) func (LwUdpHookData)
 	onError: extern(lw_udp_on_error) func (LwUdpHookError)
 }
@@ -358,6 +379,8 @@ LwFlashPolicy: cover from lw_flashpolicy {
 	host: extern(lw_flashpolicy_host_filter) func ~filter (filename:CString, filter:LwFilter)
 	unhost: extern(lw_flashpolicy_unhost) func
 	hosting: extern(lw_flashpolicy_hosting) func -> Bool
+	tag: extern(lw_flashpolicy_tag) func -> Pointer
+	setTag: extern(lw_flashpolicy_set_tag) func (tag:Pointer)
 	onError: extern(lw_flashpolicy_on_error) func (LwFlashPolicyHookError)
 }
 	
@@ -386,7 +409,9 @@ LwWebServ: cover from lw_ws {
 	enableManualFinish: extern(lw_ws_enable_manual_finish) func
 	idleTimeout: extern(lw_ws_idle_timeout) func -> Long
 	setIdleTimeout: extern(lw_ws_set_idle_timeout) func (seconds:Long)
-	
+	tag: extern(lw_ws_tag) func -> Pointer
+	setTag: extern(lw_ws_set_tag) func (tag:Pointer)
+
 	onGet: extern(lw_ws_on_get) func (LsWebServHookGet)
 	onPost: extern(lw_ws_on_post) func (LsWebServHookPost)
 	onHead: extern(lw_ws_on_head) func (LsWebServHookHead)
