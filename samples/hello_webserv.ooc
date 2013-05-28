@@ -1,8 +1,7 @@
 use lacewing
 
 get: func(webserver:LwWebServ, req:LwWebServReq) {
-	str := "Hello world from %s in ooc!" format(Lacewing version())
-	(req as LwStream) write(str, str size)
+	req writef("Hello world from %s in ooc!", Lacewing version())
 }
 
 main: func {
